@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:viser.studio)",
+      "WebFetch(domain:mujoco.readthedocs.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:colab.research.google.com)",
+      "WebFetch(domain:gymnasium.farama.org)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(python -c:*)",
+      "Bash(timeout 5 uv run:*)"
+    ]
+  }
+}
