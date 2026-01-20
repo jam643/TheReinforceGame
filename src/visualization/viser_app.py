@@ -20,6 +20,7 @@ from .scene_renderer import SceneRenderer
 from .gui_panels import GUIPanels
 from .network_visualizer import NetworkVisualizer
 from .reward_plotter import RewardPlotter
+from .training_plotter import TrainingPlotter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ class PongApp:
         self.renderer = SceneRenderer(self.server)
         self.network_viz = NetworkVisualizer(self.server)
         self.reward_plotter = RewardPlotter()
+        self.training_plotter = TrainingPlotter()
 
         # GUI panels
         self.gui = GUIPanels(
@@ -60,6 +62,7 @@ class PongApp:
             on_save_policy=self._on_save_policy,
             get_policy_list=self._get_policy_list,
             reward_plotter=self.reward_plotter,
+            training_plotter=self.training_plotter,
         )
 
         # Game state
@@ -99,6 +102,50 @@ class PongApp:
             self.game_state.mode = GameMode.HUMAN_VS_AI
         logger.info(f"Game {'paused' if self._paused else 'resumed'}")
 
+    def _on_training_progress(self, timesteps: int, total: int, mean_reward: float, episodes: int):
+        """Handle training progress update from callback.
+
+        Args:
+            timesteps: Current timesteps completed.
+            total: Total timesteps for training.
+            mean_reward: Mean reward over recent episodes.
+            episodes: Total episodes completed.
+        """
+        progress_pct = timesteps / total if total > 0 else 0
+        msg = f"Training: {timesteps:,}/{total:,} (reward: {mean_reward:.2f})"
+
+        self.game_state.update_training_status(
+            timesteps_done=timesteps,
+            mean_reward=mean_reward,
+            status_message=msg,
+        )
+        self.gui.update_training_status(msg, progress_pct)
+        self.training_plotter.update(
+            timesteps=timesteps,
+            total_timesteps=total,
+            mean_reward=mean_reward,
+            episodes=episodes,
+        )
+
+    def _on_training_complete(self, success: bool, message: str):
+        """Handle training completion.
+
+        Args:
+            success: Whether training completed successfully.
+            message: Completion message.
+        """
+        self.game_state.update_training_status(
+            is_training=False,
+            status_message=message,
+        )
+        self.gui.update_training_status(message, 1.0 if success else 0.0)
+        self.training_plotter.on_training_complete(success, message)
+
+        if success:
+            self.gui.update_policy_list()
+
+        logger.info(message)
+
     def _on_start_training(self, timesteps: int):
         """Handle start training button.
 
@@ -125,7 +172,17 @@ class PongApp:
             policy_name=f"trained_{int(time.time())}",
         )
 
-        self.trainer.start_training(config)
+        # Reset plotter before starting
+        self.training_plotter.reset()
+        self.training_plotter.set_status("Training started...")
+
+        # Start training with callbacks
+        self.trainer.start_training(
+            config,
+            on_progress=self._on_training_progress,
+            on_complete=self._on_training_complete,
+        )
+
         self.game_state.update_training_status(
             is_training=True,
             total_timesteps=timesteps,
@@ -142,6 +199,7 @@ class PongApp:
             status_message="Training stopped",
         )
         self.gui.update_training_status("Stopped", 0.0)
+        self.training_plotter.set_status("Stopped")
         logger.info("Training stopped")
 
     def _on_load_policy(self, name: str):
@@ -218,44 +276,20 @@ class PongApp:
 
         # Fallback: simple tracking AI
         ball_y = observation[1]
-        paddle_y = observation[5] if is_right_paddle else observation[4]
+        # Observation is now [ball_x, ball_y, ball_vx, ball_vy, right_paddle_y]
+        # Right paddle (AI) is at index 4, left paddle needs to come from physics
+        if is_right_paddle:
+            paddle_y = observation[4]
+        else:
+            paddle_left_y, _ = self.physics.get_paddle_positions()
+            paddle_y = paddle_left_y
         return np.clip((ball_y - paddle_y) * 3.0, -1, 1)
 
     def _update_training_status(self):
-        """Check and update training progress."""
-        if not self.trainer.is_training:
-            # Check for completion
-            result = self.trainer.get_result()
-            if result:
-                if result.get('success'):
-                    msg = f"Training complete! Saved: {result.get('policy_name')}"
-                    self.gui.update_policy_list()
-                else:
-                    msg = f"Training failed: {result.get('error', 'Unknown error')}"
-
-                self.game_state.update_training_status(
-                    is_training=False,
-                    status_message=msg,
-                )
-                self.gui.update_training_status(msg, 1.0)
-            return
-
-        # Get progress update
-        progress = self.trainer.get_progress()
-        if progress:
-            timesteps = progress.get('timesteps', 0)
-            total = progress.get('total', 1)
-            mean_reward = progress.get('mean_reward', 0)
-
-            progress_pct = timesteps / total if total > 0 else 0
-            msg = f"Training: {timesteps}/{total} (reward: {mean_reward:.2f})"
-
-            self.game_state.update_training_status(
-                timesteps_done=timesteps,
-                mean_reward=mean_reward,
-                status_message=msg,
-            )
-            self.gui.update_training_status(msg, progress_pct)
+        """Check training status (callbacks handle most updates now)."""
+        # Training progress is now handled by callbacks
+        # This method is kept for any additional status checks if needed
+        pass
 
     def run(self):
         """Run the main game loop."""
@@ -373,6 +407,8 @@ class PongApp:
                         human_paddle_y=paddle_left_y,
                         ai_paddle_y=paddle_right_y,
                         ball_y=observation[1],
+                        observation=observation,
+                        ai_action=right_action,
                     )
 
                 # Update score display

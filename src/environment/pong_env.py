@@ -1,6 +1,7 @@
 """Gymnasium environment for Pong."""
 import gymnasium as gym
 from gymnasium import spaces
+from stable_baselines3.common.monitor import Monitor
 import numpy as np
 from typing import Optional, Tuple, Any, Dict
 
@@ -19,13 +20,14 @@ class PongEnv(gym.Env):
 
     The agent controls the right paddle against a simple tracking opponent.
 
-    Observation space (6 dimensions):
+    Observation space (5 dimensions):
         - ball_x: Ball X position [-1.2, 1.2]
         - ball_y: Ball Y position [-0.9, 0.9]
         - ball_vx: Ball X velocity (normalized)
         - ball_vy: Ball Y velocity (normalized)
         - own_paddle_y: Agent's paddle Y position [-0.65, 0.65]
-        - opp_paddle_y: Opponent's paddle Y position [-0.65, 0.65]
+
+    Note: The opponent's paddle position is NOT included in observations.
 
     Action space:
         - Continuous [-1, 1]: Paddle velocity (negative = down, positive = up)
@@ -71,10 +73,10 @@ class PongEnv(gym.Env):
         self._score_agent = 0
         self._score_opponent = 0
 
-        # Observation space: normalized values
+        # Observation space: normalized values (5 dimensions, no opponent paddle)
         self.observation_space = spaces.Box(
-            low=np.array([-1.2, -0.9, -2.0, -2.0, -0.65, -0.65], dtype=np.float32),
-            high=np.array([1.2, 0.9, 2.0, 2.0, 0.65, 0.65], dtype=np.float32),
+            low=np.array([-1.2, -0.9, -2.0, -2.0, -0.65], dtype=np.float32),
+            high=np.array([1.2, 0.9, 2.0, 2.0, 0.65], dtype=np.float32),
             dtype=np.float32,
         )
 
@@ -121,10 +123,12 @@ class PongEnv(gym.Env):
         """
         ball_y = obs[1]
         ball_vx = obs[2]
-        paddle_y = obs[5]  # Opponent is right paddle
+        # Get opponent's (left) paddle position directly from physics
+        # since it's not in the observation anymore
+        paddle_y, _ = self.physics.get_paddle_positions()
 
-        # Only track when ball is coming toward opponent
-        if ball_vx > 0:
+        # Only track when ball is coming toward opponent (negative vx = toward left)
+        if ball_vx < 0:
             # Predict where ball will be
             target_y = ball_y
         else:
@@ -222,12 +226,9 @@ class PongEnv(gym.Env):
         # Small tracking reward
         new_obs = self._get_obs()
         ball_y = new_obs[1]
-        paddle_y = new_obs[4]  # Agent's paddle (right) - wait, agent is RIGHT
-        # Actually for the agent, we care about index 5 being their paddle
-        # But observation is from agent's perspective, so let me think...
-        # Observation: ball_x, ball_y, ball_vx, ball_vy, paddle_left_y, paddle_right_y
-        # Agent controls RIGHT paddle, so paddle_right_y (index 5) is theirs
-        agent_paddle_y = new_obs[5]
+        # Agent's paddle (right) is now at index 4
+        # Observation: ball_x, ball_y, ball_vx, ball_vy, right_paddle_y
+        agent_paddle_y = new_obs[4]
         ball_y_dist = abs(ball_y - agent_paddle_y)
         tracking_reward = REWARD_TRACKING * max(0, 1.0 - ball_y_dist)
         reward += tracking_reward
@@ -273,7 +274,7 @@ def make_pong_env(
         rank: Environment rank for seeding.
 
     Returns:
-        PongEnv instance.
+        Monitor-wrapped PongEnv instance.
     """
     def _init():
         env = PongEnvForTraining(
@@ -281,6 +282,8 @@ def make_pong_env(
             paddle_sensitivity=paddle_sensitivity,
         )
         env.reset(seed=rank)
+        # Wrap with Monitor to track episode statistics
+        env = Monitor(env)
         return env
 
     return _init

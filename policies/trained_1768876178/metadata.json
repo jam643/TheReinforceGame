@@ -1,0 +1,8 @@
+{
+  "name": "trained_1768876178",
+  "saved_at": "2026-01-19T21:31:47.932920",
+  "timesteps": 500000,
+  "learning_rate": 0.0003,
+  "discount_factor": 0.99,
+  "network_arch": "8,8"
+}

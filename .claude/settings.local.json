@@ -9,7 +9,8 @@
       "WebFetch(domain:gymnasium.farama.org)",
       "Bash(source .venv/bin/activate)",
       "Bash(python -c:*)",
-      "Bash(timeout 5 uv run:*)"
+      "Bash(timeout 5 uv run:*)",
+      "Bash(uv run python:*)"
     ]
   }
 }

@@ -139,17 +139,18 @@ class PhysicsEngine:
         )
 
     def get_observation(self) -> np.ndarray:
-        """Get the full observation vector for RL.
+        """Get the observation vector for RL.
+
+        The agent only observes its own paddle position, not the opponent's.
 
         Returns:
-            Array of [ball_x, ball_y, ball_vx, ball_vy, paddle_left_y, paddle_right_y].
+            Array of [ball_x, ball_y, ball_vx, ball_vy, right_paddle_y].
         """
         return np.array([
             self.data.sensordata[SENSOR_BALL_X],
             self.data.sensordata[SENSOR_BALL_Y],
             self.data.sensordata[SENSOR_BALL_VX],
             self.data.sensordata[SENSOR_BALL_VY],
-            self.data.sensordata[SENSOR_PADDLE_LEFT],
             self.data.sensordata[SENSOR_PADDLE_RIGHT],
         ], dtype=np.float32)
 

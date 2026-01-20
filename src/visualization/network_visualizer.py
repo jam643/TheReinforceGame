@@ -12,14 +12,13 @@ from ..core.constants import NETWORK_VIZ_UPDATE_INTERVAL
 
 logger = logging.getLogger(__name__)
 
-# Semantic labels for observation inputs
+# Semantic labels for observation inputs (5 dimensions, no opponent paddle)
 INPUT_LABELS = [
     "ball_x",
     "ball_y",
     "ball_vx",
     "ball_vy",
-    "left_paddle_y",
-    "right_paddle_y",
+    "paddle_y",
 ]
 
 OUTPUT_LABELS = [
@@ -250,7 +249,7 @@ class NetworkVisualizer:
                         lbl = self.server.scene.add_label(
                             name=f"/network/layer_{layer_idx}/label_{node_idx}",
                             text=label_text,
-                            position=(self.offset[0], layer_y - 0.25, node_z),
+                            position=(self.offset[0], layer_y + 0.25, node_z),
                         )
                         self._label_handles.append(lbl)
 
@@ -264,7 +263,7 @@ class NetworkVisualizer:
                         lbl = self.server.scene.add_label(
                             name=f"/network/layer_{layer_idx}/label_{node_idx}",
                             text=label_text,
-                            position=(self.offset[0], layer_y + 0.15, node_z),
+                            position=(self.offset[0], layer_y - 0.15, node_z),
                         )
                         self._label_handles.append(lbl)
 

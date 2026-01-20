@@ -1,4 +1,5 @@
 """GUI panels for the Viser interface."""
+
 import viser
 from typing import Callable, Optional, List, TYPE_CHECKING
 import logging
@@ -15,6 +16,7 @@ from ..core.constants import (
 
 if TYPE_CHECKING:
     from .reward_plotter import RewardPlotter
+    from .training_plotter import TrainingPlotter
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,7 @@ class GUIPanels:
         on_save_policy: Callable,
         get_policy_list: Callable,
         reward_plotter: Optional["RewardPlotter"] = None,
+        training_plotter: Optional["TrainingPlotter"] = None,
     ):
         """Initialize GUI panels.
 
@@ -48,6 +51,7 @@ class GUIPanels:
             on_save_policy: Callback for saving a policy.
             get_policy_list: Function to get available policies.
             reward_plotter: Optional reward plotter instance.
+            training_plotter: Optional training plotter instance.
         """
         self.server = server
         self.game_state = game_state
@@ -59,6 +63,7 @@ class GUIPanels:
         self.on_save_policy = on_save_policy
         self.get_policy_list = get_policy_list
         self.reward_plotter = reward_plotter
+        self.training_plotter = training_plotter
 
         # GUI handles
         self._score_text: Optional[viser.GuiHandle] = None
@@ -71,7 +76,7 @@ class GUIPanels:
     def _setup_panels(self):
         """Set up all GUI panels with tabs."""
         # Make sidebar wider
-        self.server.gui.configure_theme(control_width="large")
+        self.server.gui.configure_theme(control_width="large", dark_mode=True)
 
         # Create tab group
         tab_group = self.server.gui.add_tab_group()
@@ -88,6 +93,9 @@ class GUIPanels:
         with tab_group.add_tab("RL Training"):
             self._setup_hyperparams_panel()
             self._setup_training_panel()
+            # Add training plotter in RL Training tab
+            if self.training_plotter is not None:
+                self.training_plotter.setup_gui(self.server)
 
     def _setup_game_panel(self):
         """Set up the game settings panel."""
@@ -110,7 +118,9 @@ class GUIPanels:
 
             @ball_speed.on_update
             def _on_ball_speed(event: viser.GuiEvent):
-                self.game_state.update_settings(ball_speed_multiplier=event.target.value)
+                self.game_state.update_settings(
+                    ball_speed_multiplier=event.target.value
+                )
 
             # Paddle sensitivity slider
             paddle_sens = self.server.gui.add_slider(
@@ -220,14 +230,7 @@ class GUIPanels:
 
     def _setup_training_panel(self):
         """Set up the training control panel."""
-        with self.server.gui.add_folder("Training"):
-            # Status display
-            self._status_text = self.server.gui.add_text(
-                "Status",
-                initial_value="Idle",
-                disabled=True,
-            )
-
+        with self.server.gui.add_folder("Training Controls"):
             # Training timesteps
             timesteps_slider = self.server.gui.add_slider(
                 "Timesteps (thousands)",
@@ -264,16 +267,6 @@ class GUIPanels:
             @stop_btn.on_click
             def _on_stop(event: viser.GuiEvent):
                 self.on_stop_training()
-
-            # Progress display
-            self._progress_bar = self.server.gui.add_slider(
-                "Progress",
-                min=0,
-                max=100,
-                step=1,
-                initial_value=0,
-                disabled=True,
-            )
 
     def _setup_policy_panel(self):
         """Set up the policy management panel."""
