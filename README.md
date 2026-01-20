@@ -3,7 +3,7 @@
 An interactive Pong game featuring real-time reinforcement learning, MuJoCo physics simulation, and live neural network visualization — all in your browser.
 
 <p align="center">
-  <img src="media/rl_pong_gameplay.gif" alt="RL Pong Gameplay" width="700">
+  <img src="media/rl_pong_gameplay.gif" alt="RL Pong Gameplay" width="1280">
 </p>
 
 ## Features
@@ -65,6 +65,10 @@ Open **http://localhost:8080** in your browser.
 4. Click **Start Training**
 5. Watch the training progress with live reward plots
 
+<p align="center">
+  <img src="media/rl_training.png" alt="RL Training Interface" width="400">
+</p>
+
 Trained policies are automatically saved to the `policies/` directory.
 
 ## Architecture
@@ -91,36 +95,36 @@ src/
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Physics | [MuJoCo](https://mujoco.org/) 3.2+ |
-| Visualization | [Viser](https://github.com/nerfstudio-project/viser) |
-| RL Algorithm | [Stable-Baselines3](https://stable-baselines3.readthedocs.io/) PPO |
-| Environment | [Gymnasium](https://gymnasium.farama.org/) |
-| Deep Learning | [PyTorch](https://pytorch.org/) |
-| Plotting | [Plotly](https://plotly.com/python/) |
+| Component     | Technology                                                         |
+| ------------- | ------------------------------------------------------------------ |
+| Physics       | [MuJoCo](https://mujoco.org/) 3.2+                                 |
+| Visualization | [Viser](https://github.com/nerfstudio-project/viser)               |
+| RL Algorithm  | [Stable-Baselines3](https://stable-baselines3.readthedocs.io/) PPO |
+| Environment   | [Gymnasium](https://gymnasium.farama.org/)                         |
+| Deep Learning | [PyTorch](https://pytorch.org/)                                    |
+| Plotting      | [Plotly](https://plotly.com/python/)                               |
 
 ## Observation Space
 
 The RL agent receives a 5-dimensional observation:
 
-| Index | Feature | Range |
-|-------|---------|-------|
-| 0 | Ball X position | [-1.2, 1.2] |
-| 1 | Ball Y position | [-0.9, 0.9] |
-| 2 | Ball X velocity | [-2.0, 2.0] |
-| 3 | Ball Y velocity | [-2.0, 2.0] |
-| 4 | Own paddle Y | [-0.65, 0.65] |
+| Index | Feature         | Range         |
+| ----- | --------------- | ------------- |
+| 0     | Ball X position | [-1.2, 1.2]   |
+| 1     | Ball Y position | [-0.9, 0.9]   |
+| 2     | Ball X velocity | [-2.0, 2.0]   |
+| 3     | Ball Y velocity | [-2.0, 2.0]   |
+| 4     | Own paddle Y    | [-0.65, 0.65] |
 
 The agent does **not** observe the opponent's paddle position.
 
 ## Reward Structure
 
-| Event | Reward |
-|-------|--------|
-| Score a point | +1.0 |
-| Concede a point | -1.0 |
-| Track ball | +0.001 × alignment |
+| Event           | Reward             |
+| --------------- | ------------------ |
+| Score a point   | +1.0               |
+| Concede a point | -1.0               |
+| Track ball      | +0.001 × alignment |
 
 ## License
 

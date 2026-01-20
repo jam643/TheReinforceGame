@@ -8,7 +8,8 @@ from plotly.subplots import make_subplots
 
 from ..core.constants import REWARD_SCORE, REWARD_CONCEDE, REWARD_TRACKING
 
-# Observation labels matching the environment (5 dimensions, no opponent paddle)
+# Observation labels matching the transformed environment (5 dimensions)
+# Note: ball_x and ball_vx are negated (positive = away from agent)
 OBS_LABELS = ["ball_x", "ball_y", "ball_vx", "ball_vy", "paddle_y"]
 OBS_COLORS = ["#ff6b6b", "#ffa94d", "#ffd43b", "#69db7c", "#da77f2"]
 

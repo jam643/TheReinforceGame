@@ -12,11 +12,12 @@ from ..core.constants import NETWORK_VIZ_UPDATE_INTERVAL
 
 logger = logging.getLogger(__name__)
 
-# Semantic labels for observation inputs (5 dimensions, no opponent paddle)
+# Semantic labels for observation inputs (5 dimensions, transformed for agent's view)
+# Note: ball_x and ball_vx are negated so positive = away from agent
 INPUT_LABELS = [
-    "ball_x",
+    "ball_x",   # Negated: positive = opponent side
     "ball_y",
-    "ball_vx",
+    "ball_vx",  # Negated: positive = going away
     "ball_vy",
     "paddle_y",
 ]

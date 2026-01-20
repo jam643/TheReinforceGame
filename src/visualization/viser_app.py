@@ -253,11 +253,32 @@ class PongApp:
         action = np.clip(error * 5.0, -1, 1)
         return float(action)
 
+    def _transform_observation(self, raw_obs: np.ndarray) -> np.ndarray:
+        """Transform raw observation to agent's perspective.
+
+        The agent sees the game as if it were on the left side:
+        - Positive ball_x = ball on opponent's side (far)
+        - Positive ball_vx = ball moving away from agent
+
+        Args:
+            raw_obs: Raw observation [ball_x, ball_y, ball_vx, ball_vy, paddle_y]
+
+        Returns:
+            Transformed observation for the policy.
+        """
+        return np.array([
+            -raw_obs[0],  # Negate ball_x
+            raw_obs[1],   # ball_y unchanged
+            -raw_obs[2] / BALL_INITIAL_SPEED,  # Negate and normalize ball_vx
+            raw_obs[3] / BALL_INITIAL_SPEED,   # Normalize ball_vy
+            raw_obs[4],   # paddle_y unchanged
+        ], dtype=np.float32)
+
     def _get_ai_action(self, observation: np.ndarray, is_right_paddle: bool = True) -> float:
         """Get AI paddle action.
 
         Args:
-            observation: Current observation.
+            observation: Current raw observation from physics.
             is_right_paddle: Whether this is for the right paddle.
 
         Returns:
@@ -265,10 +286,12 @@ class PongApp:
         """
         model = self.policy_manager.current_model
 
-        if model is not None:
+        if model is not None and is_right_paddle:
             try:
+                # Transform observation to match training format
+                transformed_obs = self._transform_observation(observation)
                 # PPO expects observation as (batch, features)
-                obs = observation.reshape(1, -1)
+                obs = transformed_obs.reshape(1, -1)
                 action, _ = model.predict(obs, deterministic=True)
                 return float(action[0])
             except Exception as e:
@@ -276,14 +299,25 @@ class PongApp:
 
         # Fallback: simple tracking AI
         ball_y = observation[1]
-        # Observation is now [ball_x, ball_y, ball_vx, ball_vy, right_paddle_y]
-        # Right paddle (AI) is at index 4, left paddle needs to come from physics
+        ball_vx = observation[2]
+
         if is_right_paddle:
             paddle_y = observation[4]
+            # Track when ball coming toward us (positive vx = toward right)
+            if ball_vx > 0:
+                target_y = ball_y
+            else:
+                target_y = 0.0
         else:
             paddle_left_y, _ = self.physics.get_paddle_positions()
             paddle_y = paddle_left_y
-        return np.clip((ball_y - paddle_y) * 3.0, -1, 1)
+            # Track when ball coming toward us (negative vx = toward left)
+            if ball_vx < 0:
+                target_y = ball_y
+            else:
+                target_y = 0.0
+
+        return float(np.clip((target_y - paddle_y) * 3.0, -1, 1))
 
     def _update_training_status(self):
         """Check training status (callbacks handle most updates now)."""
@@ -401,13 +435,15 @@ class PongApp:
                         self.physics.data.qvel[1] = 0
 
                     # Update reward plotter (human=left, AI=right)
+                    # Use transformed observation for consistency with training
+                    transformed_obs = self._transform_observation(observation)
                     self.reward_plotter.update(
                         human_scored=left_scored,
                         ai_scored=right_scored,
                         human_paddle_y=paddle_left_y,
                         ai_paddle_y=paddle_right_y,
                         ball_y=observation[1],
-                        observation=observation,
+                        observation=transformed_obs,
                         ai_action=right_action,
                     )
 
@@ -432,8 +468,9 @@ class PongApp:
                     paddle_right_y=paddle_right_y,
                 )
 
-                # Update network visualization
-                self.network_viz.update(observation)
+                # Update network visualization with transformed observation
+                transformed_obs = self._transform_observation(observation)
+                self.network_viz.update(transformed_obs)
 
         except KeyboardInterrupt:
             logger.info("Shutting down...")
